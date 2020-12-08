@@ -1,0 +1,312 @@
+// TBD  - https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode
+
+// // 1. Creating audio context
+// const offlineContext = new OfflineAudioContext({
+//   numberOfChannels: 2,
+//   length: 44100 * 40,
+//   sampleRate: 44100,
+// });
+
+// var analyserNode = offlineContext.createAnalyser();
+// analyserNode.fftSize = 2048;
+// analyserNode.maxDecibels = -25;
+// analyserNode.minDecibels = -60;
+// analyserNode.smoothingTimeConstant = 0.5;
+
+// var bufferLength = analyserNode.frequencyBinCount;
+// var dataArray = new Uint8Array(bufferLength);
+
+// var audioRecord;
+
+// 2. Creating audio sources inside the context
+// function getMic() {
+//   navigator.mediaDevices
+//     .getUserMedia(constraints)
+//     .then((stream) => {
+//       window.stream = stream; // make stream available to console
+//       audioElement.srcObject = window.stream;
+//       audioRecord = offlineContext.createBufferSource(audioElement);
+//     })
+//     .then(() => {
+//       // 3. Creating "effects" nodes - aka send data to the analyzer
+//       // 4. Choosing final destination of audio
+//       // 5. Connect the sources up to the effects, and the effects to the destination
+//       setTimeout(function () {
+//         audioRecord.connect(analyserNode).connect(offlineContext.destination);
+//         console.log(offlineContext);
+//         analyserNode.getByteTimeDomainData(dataArray);
+//         clapDetector();
+//       }, 3000);
+//     })
+//     .catch(errorHandler);
+// }
+
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var analyserNode = audioCtx.createAnalyser();
+analyserNode.fftSize = 2048;
+analyserNode.maxDecibels = -25;
+analyserNode.minDecibels = -60;
+analyserNode.smoothingTimeConstant = 0.5;
+
+// Create an empty mono, 1-second buffer at the sample rate of the AudioContext
+var myArrayBuffer = audioCtx.createBuffer(
+  1,
+  1 * audioCtx.sampleRate,
+  audioCtx.sampleRate
+);
+
+// This gives us the actual array that contains the data
+var nowBuffering = myArrayBuffer.getChannelData(0);
+// for (var i = 0; i < myArrayBuffer.length; i++) {
+//   console.log(nowBuffering[i]);
+// }
+
+// Get an AudioBufferSourceNode.
+// This is the AudioNode to use when we want to play an AudioBuffer
+var source = audioCtx.createBufferSource();
+
+// set the buffer in the AudioBufferSourceNode
+source.buffer = myArrayBuffer;
+
+// connect the AudioBufferSourceNode to the
+// destination so we can hear the sound
+source.connect(analyserNode).connect(audioCtx.destination);
+
+function recordMic(stream) {
+  //   navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+  audioSourceNode = audioContext.createMediaStreamSource(stream); //??
+  window.stream = stream; // makes stream available to console
+  audioElement.srcObject = window.stream;
+  console.log(window.stream);
+  // audioRecord = audioCtx.createBufferSource();
+  // audioRecord.buffer = audioElement);
+}
+
+function clapDetector() {
+  dataArray.forEach((element) => (element = Math.round(element / 128, 3)));
+  console.log(dataArray);
+}
+
+function errorHandler(error) {
+  console.error("Error: ", error);
+}
+
+
+
+// Pieces
+
+
+// 1. ACCESSING MICROPHONE & PROCESSING SOUNDS
+
+const audioElement = document.querySelector("audio");
+const constraints = {
+  audio: true,
+  echoCancellation: false,
+  noiseSuppression: true,
+};
+
+// Checking for microphone availability
+function checkMic() {
+  if (!navigator.getUserMedia) {
+    navigator.getUserMedia =
+      navigator.getUserMedia ||
+      navigator.webkitGetUserMedia ||
+      navigator.mozGetUserMedia ||
+      navigator.msGetUserMedia;
+  } else {
+    alert(
+      `Ошибка: браузер не может использовать микрофон :(\nУстанови современный браузер или используй двойной клик мышкой вместо хлопков.\n\nYour browser doesn't support microphone usage :( \nInstall a modern browser or use doubleclicks with your mouse instead of claps.`
+    );
+  }
+}
+
+// Connecting mic stream to the analyser node
+
+function recordMic() {
+  var audioContext = new AudioContext();
+
+  var BUFF_SIZE_RENDERER = 16384;
+
+  var microphone_stream = null,
+    gain_node = null,
+    script_processor_node = null,
+    script_processor_analysis_node = null,
+    analyser_node = null;
+
+  navigator.getUserMedia(
+    { audio: true },
+    function (stream) {
+      start_microphone(stream);
+    },
+    function (e) {
+      alert(`Ошибка: невозможно записать аудио\nError capturing audio.`);
+    }
+  );
+
+  // ---
+
+  //   function clapDetector(given_typed_array, num_row_to_display, label) {
+  //     var size_buffer = given_typed_array.length;
+  //     var index = 0;
+
+  //     console.log("__________ " + label);
+
+  //     if (label === "time") {
+  //       for (; index < num_row_to_display && index < size_buffer; index += 1) {
+  //         var curr_value_time = given_typed_array[index] / 128 - 1.0;
+
+  //         console.log(curr_value_time);
+  //       }
+  //     } else if (label === "frequency") {
+  //       for (; index < num_row_to_display && index < size_buffer; index += 1) {
+  //         console.log(given_typed_array[index]);
+  //       }
+  //     } else {
+  //       throw new Error("ERROR - must pass time or frequency");
+  //     }
+  //   }
+
+  function process_microphone_buffer(event) {
+    var i, N, inp, microphone_output_buffer;
+
+    microphone_output_buffer = event.inputBuffer.getChannelData(0); // just mono - 1 channel for now
+    detectClaps(microphone_output_buffer);
+  }
+
+  function start_microphone(stream) {
+    gain_node = audioContext.createGain();
+    gain_node.connect(audioContext.destination);
+
+    microphone_stream = audioContext.createMediaStreamSource(stream);
+    microphone_stream.connect(gain_node);
+    gain_node.gain.value = 0; // preventing sound reproduction & feedback from speakers
+
+    script_processor_node = audioContext.createScriptProcessor(
+      BUFF_SIZE_RENDERER,
+      1,
+      1
+    );
+    script_processor_node.onaudioprocess = process_microphone_buffer;
+
+    microphone_stream.connect(script_processor_node);
+  }
+  // --- setup FFT
+
+  // script_processor_analysis_node = audioContext.createScriptProcessor(
+  //   2048,
+  //   1,
+  //   1
+  // );
+  // script_processor_analysis_node.connect(gain_node);
+
+  // analyser_node = audioContext.createAnalyser();
+  // analyser_node.smoothingTimeConstant = 0;
+  // analyser_node.fftSize = 2048;
+
+  // microphone_stream.connect(analyser_node);
+
+  // analyser_node.connect(script_processor_analysis_node);
+
+  // var buffer_length = analyser_node.frequencyBinCount;
+
+  // var array_freq_domain = new Uint8Array(buffer_length);
+  // var array_time_domain = new Uint8Array(buffer_length);
+
+  // console.log("buffer_length " + buffer_length);
+
+  // script_processor_analysis_node.onaudioprocess = function () {
+  //   // get the average for the first channel
+  //   analyser_node.getByteFrequencyData(array_freq_domain);
+  //   analyser_node.getByteTimeDomainData(array_time_domain);
+
+  //   // draw the spectrogram
+  //   if (microphone_stream.playbackState == microphone_stream.PLAYING_STATE) {
+  //     clapDetector(array_freq_domain, 5, "frequency");
+  //     clapDetector(array_time_domain, 5, "time"); // store this to record to aggregate buffer/file
+  //   }
+  // };
+  //   }
+}
+
+// Detecting clipping
+
+// function MeteringSample(meterElement) {
+//   this.buffer = null;
+
+//   loadSounds(this, { buffer: "sounds/chrono.mp3" });
+
+//   this.meterElement = meterElement;
+//   this.renderMeter();
+// }
+
+// MeteringSample.prototype.playPause = function () {
+//   if (!this.isPlaying) {
+//     // Make a source node for the sample.
+//     var source = context.createBufferSource();
+//     source.buffer = this.buffer;
+//     source.loop = true;
+//     // Run the source node through a gain node.
+//     var gain = context.createGain();
+//     // Create mix node (gain node to combine everything).
+//     var mix = context.createGain();
+//     // Create meter.
+//     var meter = context.createScriptProcessor(2048, 1, 1);
+//     var ctx = this;
+//     meter.onaudioprocess = function (e) {
+//       ctx.processAudio.call(ctx, e);
+//     };
+//     // Connect the whole sound to mix node.
+//     source.connect(gain);
+//     gain.connect(mix);
+//     mix.connect(meter);
+//     meter.connect(context.destination);
+//     // Connect source to destination for playback.
+//     mix.connect(context.destination);
+
+//     this.source = source;
+//     this.gain = gain;
+//     // Start playback.
+//     this.source[this.source.start ? "start" : "noteOn"](0);
+//   } else {
+//     this.source.stop(0);
+//   }
+//   this.isPlaying = !this.isPlaying;
+// };
+
+// MeteringSample.prototype.gainRangeChanged = function (e) {
+//   var value = parseInt(e.value);
+//   this.gain.gain.value = value;
+// };
+
+// MeteringSample.prototype.processAudio = function (e) {
+//   var leftBuffer = e.inputBuffer.getChannelData(0);
+//   this.checkClipping(leftBuffer);
+/*
+    var rightBuffer = e.inputBuffer.getChannelData(1);
+    this.checkClipping(rightBuffer);
+    */
+// };
+
+//   MeteringSample.prototype.renderMeter = function() {
+//     var didRecentlyClip = (new Date() - this.lastClipTime) < 100;
+//     this.meterElement.className = didRecentlyClip ? 'clip' : 'noclip';
+//     var ctx = this;
+//     requestAnimFrame(function() { ctx.renderMeter.call(ctx) });
+//   }
+
+function detectClaps(buffer) {
+  var isClipping = false;
+  // Iterate through buffer to check if any of the |values| exceeds 1.
+  for (var i = 0; i < buffer.length; i++) {
+    var absValue = Math.abs(buffer[i]);
+    if (absValue >= 0.96) {
+      isClipping = true;
+      break;
+    }
+  }
+  this.isClipping = isClipping;
+  if (isClipping) {
+    //   this.lastClipTime = new Date();
+    console.log("Clap!");
+  }
+}
