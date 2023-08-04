@@ -1,6 +1,6 @@
-# ClapCard
+# Web Audio API Demo
 
-An online birthday card that responds to the user clapping their hands
+This is a simple demo that uses the browsers' web audio API to react to the sound of a user clapping their hands
 
 ## Built With
 
